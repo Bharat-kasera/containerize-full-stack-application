@@ -1,16 +1,11 @@
-
 FROM node:22
 
 WORKDIR /app
 
-# Install dependencies
-COPY frontend/package*.json ./
+COPY package*.json ./
+
 RUN npm install
 
-# Copy source code & build
-COPY frontend/. .
-RUN npm run build
+COPY . .
 
-EXPOSE 3000
-
-CMD ["npm", "run", "dev"]
+CMD ["npm", "run", "dev",  "--", "--host"]

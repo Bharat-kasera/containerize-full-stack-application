@@ -1,32 +1,106 @@
-# Chai Code DevOps Assignment
+### 1. docker-compose.yml
 
-## Assignment Description
+```yaml
+name: "fullstack-app"
 
-The provided repository contains a basic full-stack application with the following components:
+services:
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--requirepass", "Test#123"]
+    ports:
+      - "6380:6380"
+    volumes:
+      - redis:/data
+    networks:
+      - my-app-network
 
-1. A basic Express.js server with basic & courses endpoint
-2. A React.js frontend application
-3. Redis integration for API response caching
-4. MongoDB integration for data storage
+  mongo:
 
-## Objective
+    image: mongo:4.4
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo:/data/db
+    networks:
+      - my-app-network
 
-Your task is to containerize the application for a "Development" environment using Docker. Ensure that all components work seamlessly together within their respective containers and work as per the provided screenshots below.
+  backend:
+    container_name: backend
+    build:
+      context: ./backend
+    env_file:
+      - ./backend/.env
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    depends_on:
+      - redis
+      - mongo
+    networks:
+      - my-app-network
+    command: sh -c "sleep 5 && node seed.js"
 
-## Note
+  frontend:
+    container_name: frontend
+    build:
+      context: ./frontend
+    env_file:
+      - ./frontend/.env
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - my-app-network
 
-The application environment variables are stored in a `.env` file. You can find the `.env.example` file in the respective directory. Copy it to `.env` and fill in the required values.
+volumes:
+  redis:
+  mongo:
 
-## Screenshots
+networks:
+  my-app-network:
+    driver: bridge
 
-### Home Page
+```
 
-![Screenshot 1](./screenshots/One.png)
+### 2. Backend Dockerfile (backend/Dockerfile)
 
-### Load Data from MongoDB
+```Dockerfile
+FROM node:22
 
-![Screenshot 2](./screenshots/Two.png)
+WORKDIR /app
 
-### API Response Caching
+COPY package*.json ./
+RUN npm install
 
-![Screenshot 3](./screenshots/Three.png)
+COPY . .
+
+EXPOSE 8080
+
+CMD ["npm", "run", "dev"] 
+```
+
+### 3. Frontend Dockerfile (frontend/Dockerfile)
+
+```Dockerfile
+FROM node:22
+
+WORKDIR /app
+
+COPY package*.json ./
+
+RUN npm install
+
+COPY . .
+
+CMD ["npm", "run", "dev",  "--", "--host"]
+```
+

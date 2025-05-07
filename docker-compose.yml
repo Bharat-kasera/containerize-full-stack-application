@@ -1,63 +1,67 @@
-name: my-app
+name: "fullstack-app"
 
 services:
-  mongo:
-    image: mongo:5.0
-    container_name: mongodb
-    environment: 
-      MONGO_URL: ${MONGO_URL}
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--requirepass", "Test#123"]
     ports:
-      - "27017:27017"
+      - "6380:6380"
     volumes:
-      - mongo_data:/data/db
+      - redis:/data
     networks:
       - my-app-network
 
-  redis:
-    image: redis:7.0-alpine
-    container_name: redis
+  mongo:
+
+    image: mongo:4.4
     environment:
-      REDIS_USERNAME: ${REDIS_USERNAME}
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
     ports:
-      - "6379:6379"
+      - "27017:27017"
     volumes:
-      - redis_data:/data
+      - mongo:/data/db
     networks:
       - my-app-network
 
   backend:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
     container_name: backend
+    build:
+      context: ./backend
+    env_file:
+      - ./backend/.env
     ports:
       - "8080:8080"
-    env_file:
-      - backend/.env
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
     depends_on:
-      - mongo
       - redis
+      - mongo
     networks:
       - my-app-network
+    command: sh -c "sleep 5 && node seed.js"
 
   frontend:
-    build:
-      context: .
-      dockerfile: frontend/Dockerfile
     container_name: frontend
-    ports:
-      - "3000:3000"
+    build:
+      context: ./frontend
     env_file:
-      - frontend/.env
+      - ./frontend/.env
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
     depends_on:
       - backend
     networks:
       - my-app-network
 
 volumes:
-  mongo_data:
-  redis_data:
+  redis:
+  mongo:
 
 networks:
-  my-app-network: {}
+  my-app-network:
+    driver: bridge
